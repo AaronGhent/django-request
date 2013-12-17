@@ -34,3 +34,8 @@ try:
     REQUEST_BASE_URL = getattr(settings, 'REQUEST_BASE_URL', 'http://%s' % Site.objects.get_current().domain)
 except:
     REQUEST_BASE_URL = getattr(settings, 'REQUEST_BASE_URL', 'http://127.0.0.1')
+
+REQUEST_BUFFER = []
+REQUEST_BUFFER_SIZE = getattr(settings, 'REQUEST_BUFFER_SIZE', 0)
+REQUEST_USE_CACHE = getattr(settings, 'REQUEST_USE_CACHE', False)
+REQUEST_CACHE_PREFIX = getattr(settings, 'REQUEST_CACHE_PREFIX', 'request')

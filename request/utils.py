@@ -1,4 +1,9 @@
+import uuid
+
+from django.utils.dateformat import format
 from django.utils.translation import ugettext_lazy as _
+
+from request import settings
 
 HTTP_STATUS_CODES = (
     # Infomational
@@ -124,3 +129,29 @@ engines = patterns(None,
     (r'^https?:\/\/([\.\w]+)?google.*(?:&|\?)q=(?P<keywords>[\+-_\w]+)', 'Google'),
     (r'^https?:\/\/([\.\w]+)?bing.*(?:&|\?)q=(?P<keywords>[\+-_\w]+)', 'Bing'),
 )
+
+
+def get_client_ip(request):
+    """
+    Get the client ip address from request
+    """
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0]
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    return ip
+
+
+def request_cache_key(request):
+    """
+    Returns the key for request cache database
+    """
+    prefix = settings.REQUEST_CACHE_PREFIX
+    user = request.user if request.user else "anonymous"
+    timestamp = format(request.time, 'U')
+    request_id = uuid.uuid4()  # Add unique uuid to prevent user-timestamp collision
+
+    key_cache = '%s:%s:%s:%s' % (prefix, user, timestamp, request_id)
+
+    return key_cache

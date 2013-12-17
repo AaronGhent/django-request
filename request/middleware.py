@@ -6,6 +6,9 @@ from request.router import patterns
 
 
 class RequestMiddleware(object):
+    def __init__(self):
+        self.exceptions = patterns(False, *settings.REQUEST_IGNORE_PATHS)
+
     def process_response(self, request, response):
         if request.method.lower() not in settings.REQUEST_VALID_METHOD_NAMES:
             return response
@@ -13,8 +16,7 @@ class RequestMiddleware(object):
         if response.status_code < 400 and settings.REQUEST_ONLY_ERRORS:
             return response
 
-        ignore = patterns(False, *settings.REQUEST_IGNORE_PATHS)
-        if ignore.resolve(request.path[1:]):
+        if self.exceptions.resolve(request.path):
             return response
 
         if request.is_ajax() and settings.REQUEST_IGNORE_AJAX:
@@ -27,7 +29,6 @@ class RequestMiddleware(object):
             if request.user.username in settings.REQUEST_IGNORE_USERNAME:
                 return response
 
-        r = Request()
-        r.from_http_request(request, response)
+        Request.objects.create_from_http_request(request, response)
 
         return response

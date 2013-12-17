@@ -5,8 +5,13 @@ from django.contrib.auth.models import User
 from django.utils.translation import ugettext_lazy as _
 
 from request.managers import RequestManager
-from request.utils import HTTP_STATUS_CODES, browsers, engines
+from request.utils import HTTP_STATUS_CODES, browsers, engines, get_client_ip
+
+import datetime
+from django.utils.timezone import utc
+
 from request import settings
+
 
 class Request(models.Model):
     # Response infomation
@@ -15,7 +20,7 @@ class Request(models.Model):
     # Request infomation
     method = models.CharField(_('method'), default='GET', max_length=7)
     path = models.CharField(_('path'), max_length=255)
-    time = models.DateTimeField(_('time'), auto_now_add=True)
+    time = models.DateTimeField(_('time'))
 
     is_secure = models.BooleanField(_('is secure'), default=False)
     is_ajax = models.BooleanField(_('is ajax'), default=False, help_text=_('Wheather this request was used via javascript.'))
@@ -26,8 +31,14 @@ class Request(models.Model):
     referer = models.URLField(_('referer'), max_length=255, blank=True, null=True)
     user_agent = models.CharField(_('user agent'), max_length=255, blank=True, null=True)
     language = models.CharField(_('language'), max_length=255, blank=True, null=True)
+    session_key = models.CharField(_('session key'), max_length=40, blank=True, null=True)
 
     objects = RequestManager()
+
+    def save(self, *args, **kwargs):
+        """On save, update timestamps"""
+        if not self.id and not self.time:
+            self.time = datetime.datetime.utcnow().replace(tzinfo=utc)
 
     class Meta:
         verbose_name = _('request')
@@ -40,8 +51,9 @@ class Request(models.Model):
     def get_user(self):
         return User.objects.get(pk=self.user_id)
 
-    def from_http_request(self, request, response=None, commit=True):
+    def from_http_request(self, request, response=None):
         # Request infomation
+        self.time = datetime.datetime.utcnow().replace(tzinfo=utc)
         self.method = request.method
         self.path = request.path
 
@@ -49,10 +61,12 @@ class Request(models.Model):
         self.is_ajax = request.is_ajax()
 
         # User infomation
-        self.ip = request.META.get('REMOTE_ADDR', '')
+        self.ip = get_client_ip(request)
         self.referer = request.META.get('HTTP_REFERER', '')[:255]
         self.user_agent = request.META.get('HTTP_USER_AGENT', '')[:255]
         self.language = request.META.get('HTTP_ACCEPT_LANGUAGE', '')[:255]
+        if hasattr(request, 'session'):
+            self.session_key = request.session.session_key
 
         if getattr(request, 'user', False):
             if request.user.is_authenticated():
@@ -63,9 +77,6 @@ class Request(models.Model):
 
             if (response.status_code == 301) or (response.status_code == 302):
                 self.redirect = response['Location']
-
-        if commit:
-            self.save()
 
     #@property
     def browser(self):

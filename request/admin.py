@@ -1,9 +1,10 @@
 from datetime import datetime, timedelta, date
+from django.utils.timezone import utc
 
 from django.db.models import Count
 from django.utils.translation import ugettext_lazy as _
 from django.shortcuts import render_to_response
-from django.utils.functional import update_wrapper
+from functools import update_wrapper
 from django.template import RequestContext
 from django.contrib import admin
 from django.http import HttpResponse
@@ -43,7 +44,7 @@ class RequestAdmin(admin.ModelAdmin):
     request_from.allow_tags = True
 
     def get_urls(self):
-        from django.conf.urls.defaults import patterns, url
+        from django.conf.urls import patterns, url
 
         def wrap(view):
             def wrapper(*args, **kwargs):
@@ -80,7 +81,7 @@ class RequestAdmin(admin.ModelAdmin):
         else:
             days_step = 30
 
-        days = [date.today() - timedelta(day) for day in xrange(0, days_count, days_step)]
+        days = [datetime.utcnow().replace(tzinfo=utc) - timedelta(day) for day in xrange(0, days_count, days_step)]
         days_qs = [(day, Request.objects.day(date=day)) for day in days]
         return HttpResponse(simplejson.dumps(modules.graph(days_qs)), mimetype='text/javascript')
 
